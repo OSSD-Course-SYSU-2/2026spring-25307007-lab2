@@ -1,9 +1,6 @@
-// 数字块组件
+// 数字块组件 - layoutWeight等宽 + aspectRatio正方形
 
 import {
-  TILE_SIZE,
-  TILE_BORDER_RADIUS,
-  TILE_FONT_SIZE,
   TILE_GRADIENT_COLORS,
   EMPTY_TILE
 } from '../common/Constants';
@@ -12,20 +9,21 @@ import {
 export struct NumberTile {
   @Prop value: number = 0;
   @Prop isMovable: boolean = false;
+  @Prop tileFontSize: string = '6fp';
   onTileClick: () => void = () => {};
 
   build() {
     if (this.value !== EMPTY_TILE) {
       Column() {
         Text(`${this.value}`)
-          .fontSize(TILE_FONT_SIZE)
+          .fontSize(this.tileFontSize)
           .fontColor(Color.White)
           .fontWeight(FontWeight.Bold)
           .textAlign(TextAlign.Center)
       }
-      .width(TILE_SIZE)
-      .height(TILE_SIZE)
-      .borderRadius(TILE_BORDER_RADIUS)
+      .layoutWeight(1)
+      .aspectRatio(1)
+      .borderRadius('10%')
       .linearGradient({
         direction: GradientDirection.Bottom,
         colors: this.getGradientColors()
@@ -51,12 +49,13 @@ export struct NumberTile {
     } else {
       // 空格占位
       Column()
-        .width(TILE_SIZE)
-        .height(TILE_SIZE)
-        .borderRadius(TILE_BORDER_RADIUS)
+        .layoutWeight(1)
+        .aspectRatio(1)
+        .borderRadius('10%')
         .backgroundColor('rgba(255,255,255,0.05)')
     }
   }
+
   // 根据数字值获取渐变色
   private getGradientColors(): Array<[string, number]> {
     const colorGroup = TILE_GRADIENT_COLORS;

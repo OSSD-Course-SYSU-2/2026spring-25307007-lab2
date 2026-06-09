@@ -2,7 +2,6 @@
 
 import {
   VICTORY_DIALOG_WIDTH,
-  VICTORY_DIALOG_HEIGHT,
   BTN_RESTART,
   CELEBRATION_DURATION,
   CELEBRATION_PARTICLE_INTERVAL
@@ -88,7 +87,7 @@ export struct VictoryDialog {
   private generateConfetti(): void {
     const newParticles: ConfettiParticle[] = [];
     for (let i = 0; i < 5; i++) {
-      const x = Math.random() * VICTORY_DIALOG_WIDTH;
+      const x = Math.random() * 300;
       const y = -10;
       const color = CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)];
       const size = Math.random() * 8 + 4;
@@ -101,7 +100,7 @@ export struct VictoryDialog {
       p.y += p.speedY;
       p.rotation += 5;
       return p;
-    }).filter(p => p.y < VICTORY_DIALOG_HEIGHT + 20);
+    }).filter(p => p.y < 380);
 
     this.confettiParticles = [...existing, ...newParticles];
   }
@@ -144,31 +143,31 @@ export struct VictoryDialog {
             }, (item: ConfettiParticle) => `${item.id}`)
           }
           .width('100%')
-          .height(120)
-          .margin({ top: -20 })
+          .height('20%')
+          .margin({ top: '-5%' })
         }
 
         // 胜利图标
         Text('\u{1F3C6}')
-          .fontSize(48)
-          .margin({ top: 16, bottom: 8 })
+          .fontSize('10fp')
+          .margin({ top: '4%', bottom: '2%' })
 
         // 胜利标题
         Text('恭喜通关！')
-          .fontSize(24)
+          .fontSize('5fp')
           .fontColor(Color.White)
           .fontWeight(FontWeight.Bold)
-          .margin({ bottom: 20 })
+          .margin({ bottom: '5%' })
 
         // 统计信息
         Row() {
           Column() {
             Text('步数')
-              .fontSize(12)
+              .fontSize('2.5fp')
               .fontColor('rgba(255,255,255,0.6)')
-              .margin({ bottom: 4 })
+              .margin({ bottom: '0.5vp' })
             Text(`${this.moveCount}`)
-              .fontSize(20)
+              .fontSize('4fp')
               .fontColor('#4ECDC4')
               .fontWeight(FontWeight.Bold)
           }
@@ -176,29 +175,29 @@ export struct VictoryDialog {
 
           Column() {
             Text('用时')
-              .fontSize(12)
+              .fontSize('2.5fp')
               .fontColor('rgba(255,255,255,0.6)')
-              .margin({ bottom: 4 })
+              .margin({ bottom: '0.5vp' })
             Text(this.formattedTime)
-              .fontSize(20)
+              .fontSize('4fp')
               .fontColor('#4ECDC4')
               .fontWeight(FontWeight.Bold)
           }
           .layoutWeight(1)
         }
         .width('100%')
-        .padding({ left: 24, right: 24 })
-        .margin({ bottom: 24 })
+        .padding({ left: '6%', right: '6%' })
+        .margin({ bottom: '6%' })
 
         // 再来一局按钮
         Button(BTN_RESTART)
-          .width(160)
-          .height(44)
-          .fontSize(16)
+          .width('50%')
+          .height('12%')
+          .fontSize('3.5fp')
           .fontColor(Color.White)
           .fontWeight(FontWeight.Bold)
           .backgroundColor('#4ECDC4')
-          .borderRadius(22)
+          .borderRadius('5vp')
           .shadow({
             radius: 8,
             color: 'rgba(78,205,196,0.4)',
@@ -210,8 +209,8 @@ export struct VictoryDialog {
           })
       }
       .width(VICTORY_DIALOG_WIDTH)
-      .padding({ left: 20, right: 20, top: 24, bottom: 24 })
-      .borderRadius(20)
+      .padding({ left: '5%', right: '5%', top: '6%', bottom: '6%' })
+      .borderRadius('4vp')
       .backgroundColor('#1a1a2e')
       .border({ width: 1, color: 'rgba(255,255,255,0.1)' })
       .shadow({
