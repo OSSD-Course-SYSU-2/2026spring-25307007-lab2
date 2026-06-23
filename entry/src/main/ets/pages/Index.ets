@@ -12,6 +12,8 @@ import {
   BTN_NEW_GAME
 } from '../common/Constants';
 import { ConfigurationConstant, Configuration } from '@kit.AbilityKit';
+import { deviceInfo } from '@kit.BasicServicesKit';
+import { display } from '@kit.ArkUI';
 
 // 设备信息接口定义
 interface DeviceInfo {
@@ -28,6 +30,7 @@ struct Index {
   // 设备类型与横竖屏状态
   @State deviceCategory: string = 'phone';
   @State isLandscape: boolean = false;
+  @State hasDetectedDevice: boolean = false;
 
   // ViewModel（非响应式，通过回调更新状态）
   private viewModel: GameViewModel = new GameViewModel((state: GameViewState) => {
@@ -41,6 +44,7 @@ struct Index {
 
   aboutToAppear(): void {
     this.viewModel.startNewGame();
+    this.hasDetectedDevice = false; // 重置检测标志，确保每次加载都重新检测
     this.detectDeviceType();
   }
 
@@ -58,20 +62,66 @@ struct Index {
   // 检测设备类型
   private detectDeviceType(): void {
     try {
-      // 动态访问 deviceInfo，避免 import 预览器不支持的 Kit
-      const devInfo = globalThis.deviceInfo as DeviceInfo;
-      if (devInfo && devInfo.deviceType) {
-        this.deviceCategory = devInfo.deviceType;
+      // 优先使用 @ohos.deviceInfo API 检测设备类型
+      const devType = deviceInfo.deviceType;
+      if (devType === 'wearable' || devType === 'watch') {
+        this.deviceCategory = 'wearable';
+      } else if (devType === 'tv') {
+        this.deviceCategory = 'tv';
+      } else if (devType === 'tablet') {
+        this.deviceCategory = 'tablet';
+      } else {
+        this.deviceCategory = 'phone';
       }
     } catch (e) {
-      this.deviceCategory = 'phone';
+      // API 不可用
+    }
+    // 通过屏幕形状二次校验
+    this.detectByScreenShape();
+  }
+
+  // 通过屏幕形状兜底检测设备类型
+  private detectByScreenShape(): void {
+    try {
+      const disp = display.getDefaultDisplaySync();
+      const ratio = Math.min(disp.width, disp.height) / Math.max(disp.width, disp.height);
+      const minDim = Math.min(disp.width, disp.height);
+      
+      // 圆形手表屏幕宽高比接近1:1（>0.95），且短边较小（<=500）
+      if (ratio > 0.95 && minDim <= 500) {
+        this.deviceCategory = 'wearable';
+      }
+      // 平板：短边较大（>500vp），或宽高比接近1:1但尺寸大
+      else if (minDim > 500) {
+        this.deviceCategory = 'tablet';
+      }
+    } catch (e) {
+      // 屏幕检测也失败，保持默认值
+    }
+  }
+
+  // 通过组件区域尺寸检测设备类型（最可靠的方式）
+  private detectByComponentArea(width: number, height: number): void {
+    if (this.hasDetectedDevice) return;
+    this.hasDetectedDevice = true;
+    
+    const ratio = Math.min(width, height) / Math.max(width, height);
+    const minDim = Math.min(width, height);
+    
+    // 圆形手表屏幕：宽高比接近1:1（>0.95），且短边较小（<=500vp）
+    if (ratio > 0.95 && minDim <= 500) {
+      this.deviceCategory = 'wearable';
+    }
+    // 平板：短边较大（>500vp）
+    else if (minDim > 500) {
+      this.deviceCategory = 'tablet';
     }
   }
 
   // ========== 各设备布局参数计算 ==========
 
   private getBoardWidthPercent(): string {
-    if (this.deviceCategory === 'wearable') return '90%';
+    if (this.deviceCategory === 'wearable') return '65%';
     if (this.deviceCategory === 'tv') return this.isLandscape ? '50%' : '70%';
     if (this.deviceCategory === 'tablet') return this.isLandscape ? '55%' : '80%';
     return '90%';
@@ -79,9 +129,9 @@ struct Index {
 
   private getTitleFontSize(): string {
     if (this.deviceCategory === 'wearable') return '4fp';
-    if (this.deviceCategory === 'tv') return '8fp';
-    if (this.deviceCategory === 'tablet') return '7fp';
-    return '7fp';
+    if (this.deviceCategory === 'tv') return '12fp';
+    if (this.deviceCategory === 'tablet') return '28fp';
+    return '9fp';
   }
 
   private getScoreBoardHeight(): string {
@@ -91,42 +141,45 @@ struct Index {
   }
 
   private getBtnWidth(): string {
-    if (this.deviceCategory === 'wearable') return '50%';
+    if (this.deviceCategory === 'wearable') return '40%';
     if (this.deviceCategory === 'tv') return '25%';
     if (this.deviceCategory === 'tablet') return '30%';
     return '35%';
   }
 
   private getBtnHeight(): string {
-    if (this.deviceCategory === 'wearable') return '8%';
+    if (this.deviceCategory === 'wearable') return '5%';
     return '6%';
   }
 
   private getBtnFontSize(): string {
-    if (this.deviceCategory === 'wearable') return '3fp';
-    if (this.deviceCategory === 'tv') return '4fp';
-    return '3.5fp';
+    if (this.deviceCategory === 'wearable') return '2fp';
+    if (this.deviceCategory === 'tv') return '6fp';
+    if (this.deviceCategory === 'tablet') return '14fp';
+    return '4.5fp';
   }
 
   private getTileFontSize(): string {
-    if (this.deviceCategory === 'wearable') return '4fp';
-    if (this.deviceCategory === 'tv') return '7fp';
-    if (this.deviceCategory === 'tablet') return '6fp';
-    return '6fp';
+    if (this.deviceCategory === 'wearable') return '8fp';
+    if (this.deviceCategory === 'tv') return '16fp';
+    if (this.deviceCategory === 'tablet') return '32fp';
+    return '12fp';
   }
 
   private getScoreLabelFontSize(): string {
     if (this.deviceCategory === 'wearable') return '2fp';
-    return '3fp';
+    if (this.deviceCategory === 'tablet') return '14fp';
+    return '4fp';
   }
 
   private getScoreValueFontSize(): string {
-    if (this.deviceCategory === 'wearable') return '3.5fp';
-    return '5fp';
+    if (this.deviceCategory === 'wearable') return '2.5fp';
+    if (this.deviceCategory === 'tablet') return '18fp';
+    return '6fp';
   }
 
   private getBoardPadding(): string {
-    if (this.deviceCategory === 'wearable') return '2%';
+    if (this.deviceCategory === 'wearable') return '1.5%';
     if (this.deviceCategory === 'tv') return '2%';
     return '3%';
   }
@@ -172,6 +225,12 @@ struct Index {
     }
     .width('100%')
     .height('100%')
+    .onAreaChange((oldValue: Area, newValue: Area) => {
+      // 通过组件实际渲染区域检测设备类型
+      const width = newValue.width as number;
+      const height = newValue.height as number;
+      this.detectByComponentArea(width, height);
+    })
   }
 
   // ========== wearable 精简布局 ==========
@@ -182,7 +241,7 @@ struct Index {
         .fontSize(this.getScoreValueFontSize())
         .fontColor('rgba(255,255,255,0.8)')
         .fontWeight(FontWeight.Bold)
-        .margin({ top: '5%', bottom: '2%' })
+        .margin({ top: '1%', bottom: '1%' })
 
       Flex({ justifyContent: FlexAlign.Center, alignItems: ItemAlign.Center }) {
         GameBoard({
@@ -199,7 +258,7 @@ struct Index {
         })
       }
       .width(this.getBoardWidthPercent())
-      .margin({ bottom: '2%' })
+      .margin({ bottom: '1%' })
 
       Button(BTN_NEW_GAME)
         .width(this.getBtnWidth())
@@ -438,7 +497,7 @@ struct Index {
         .fontSize(this.getTitleFontSize())
         .fontColor(Color.White)
         .fontWeight(FontWeight.Bold)
-        .margin({ top: '5%', bottom: '2%' })
+        .margin({ top: '3%', bottom: '1.5%' })
         .textShadow({
           radius: 4,
           color: 'rgba(78,205,196,0.3)',
@@ -456,7 +515,7 @@ struct Index {
         })
       }
       .width('90%')
-      .margin({ bottom: '2%' })
+      .margin({ bottom: '1.5%' })
 
       Flex({ justifyContent: FlexAlign.Center, alignItems: ItemAlign.Center }) {
         GameBoard({
@@ -473,7 +532,7 @@ struct Index {
         })
       }
       .width(this.getBoardWidthPercent())
-      .margin({ bottom: '3%' })
+      .margin({ bottom: '2%' })
 
       Button(BTN_NEW_GAME)
         .width(this.getBtnWidth())
@@ -491,7 +550,7 @@ struct Index {
     }
     .width('100%')
     .height('100%')
-    .justifyContent(FlexAlign.Start)
+    .justifyContent(FlexAlign.Center)
     .alignItems(HorizontalAlign.Center)
     .onTouch((event: TouchEvent) => {
       this.handleTouch(event);
