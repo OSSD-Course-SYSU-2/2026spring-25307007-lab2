@@ -1,6 +1,6 @@
 // 游戏数据模型与类型定义
 
-import { GRID_SIZE, TOTAL_TILES, EMPTY_TILE } from '../common/Constants';
+import { GRID_SIZE, EMPTY_TILE, GameMode } from '../common/Constants';
 
 // 数字块位置信息
 export class TilePosition {
@@ -22,7 +22,7 @@ export enum GameState {
 
 // 游戏数据模型
 export class GameModel {
-  // 棋盘数据：4x4数组，0表示空格，1-15表示数字
+  // 棋盘数据：动态尺寸数组，0表示空格，1-(n*n-1)表示数字
   board: number[][] = [];
   // 空格位置
   emptyPos: TilePosition = new TilePosition(0, 0);
@@ -32,19 +32,38 @@ export class GameModel {
   elapsedTime: number = 0;
   // 游戏状态
   state: GameState = GameState.IDLE;
+  // 棋盘尺寸（动态）
+  private gridSize: number = GRID_SIZE;
 
   constructor() {
     this.initBoard();
   }
 
-  // 初始化为已排好的状态（1-15, 0）
+  // 设置棋盘尺寸
+  setGridSize(size: number): void {
+    this.gridSize = size;
+    this.initBoard();
+  }
+
+  // 获取棋盘尺寸
+  getGridSize(): number {
+    return this.gridSize;
+  }
+
+  // 获取总块数
+  getTotalTiles(): number {
+    return this.gridSize * this.gridSize;
+  }
+
+  // 初始化为已排好的状态（1-(n*n-1), 0）
   initBoard(): void {
     this.board = [];
-    for (let row = 0; row < GRID_SIZE; row++) {
+    const totalTiles = this.getTotalTiles();
+    for (let row = 0; row < this.gridSize; row++) {
       this.board[row] = [];
-      for (let col = 0; col < GRID_SIZE; col++) {
-        let value = row * GRID_SIZE + col + 1;
-        if (value === TOTAL_TILES) {
+      for (let col = 0; col < this.gridSize; col++) {
+        let value = row * this.gridSize + col + 1;
+        if (value === totalTiles) {
           value = EMPTY_TILE;
           this.emptyPos = new TilePosition(row, col);
         }
@@ -76,12 +95,12 @@ export class GameModel {
     this.moveCount++;
   }
 
-  // 检查是否胜利（1-15按顺序，空格在最后）
+  // 检查是否胜利（1-(n*n-1)按顺序，空格在最后）
   checkWin(): boolean {
-    for (let row = 0; row < GRID_SIZE; row++) {
-      for (let col = 0; col < GRID_SIZE; col++) {
-        const expected = row * GRID_SIZE + col + 1;
-        if (row === GRID_SIZE - 1 && col === GRID_SIZE - 1) {
+    for (let row = 0; row < this.gridSize; row++) {
+      for (let col = 0; col < this.gridSize; col++) {
+        const expected = row * this.gridSize + col + 1;
+        if (row === this.gridSize - 1 && col === this.gridSize - 1) {
           if (this.board[row][col] !== EMPTY_TILE) return false;
         } else {
           if (this.board[row][col] !== expected) return false;
@@ -94,8 +113,8 @@ export class GameModel {
   // 计算逆序数（用于可解性判断）
   countInversions(): number {
     const flat: number[] = [];
-    for (let row = 0; row < GRID_SIZE; row++) {
-      for (let col = 0; col < GRID_SIZE; col++) {
+    for (let row = 0; row < this.gridSize; row++) {
+      for (let col = 0; col < this.gridSize; col++) {
         if (this.board[row][col] !== EMPTY_TILE) {
           flat.push(this.board[row][col]);
         }
@@ -113,10 +132,10 @@ export class GameModel {
   }
 
   // 判断当前棋盘是否可解
-  // 对于4x4棋盘：空格在从底部数的偶数行时，逆序数为奇数可解；空格在奇数行时，逆序数为偶数可解
+  // 对于偶数×偶数棋盘：空格在从底部数的偶数行时，逆序数为奇数可解；空格在奇数行时，逆序数为偶数可解
   isSolvable(): boolean {
     const inversions = this.countInversions();
-    const emptyRowFromBottom = GRID_SIZE - this.emptyPos.row;
+    const emptyRowFromBottom = this.gridSize - this.emptyPos.row;
     if (emptyRowFromBottom % 2 === 0) {
       return inversions % 2 === 1;
     } else {
@@ -128,8 +147,8 @@ export class GameModel {
   shuffle(): void {
     // 将棋盘展平为一维数组
     const flat: number[] = [];
-    for (let row = 0; row < GRID_SIZE; row++) {
-      for (let col = 0; col < GRID_SIZE; col++) {
+    for (let row = 0; row < this.gridSize; row++) {
+      for (let col = 0; col < this.gridSize; col++) {
         flat.push(this.board[row][col]);
       }
     }
@@ -143,9 +162,9 @@ export class GameModel {
     }
 
     // 写回棋盘
-    for (let row = 0; row < GRID_SIZE; row++) {
-      for (let col = 0; col < GRID_SIZE; col++) {
-        this.board[row][col] = flat[row * GRID_SIZE + col];
+    for (let row = 0; row < this.gridSize; row++) {
+      for (let col = 0; col < this.gridSize; col++) {
+        this.board[row][col] = flat[row * this.gridSize + col];
         if (this.board[row][col] === EMPTY_TILE) {
           this.emptyPos = new TilePosition(row, col);
         }
@@ -161,8 +180,8 @@ export class GameModel {
       let col1: number = 0;
       let row2: number = 0;
       let col2: number = 0;
-      for (let row = 0; row < GRID_SIZE; row++) {
-        for (let col = 0; col < GRID_SIZE; col++) {
+      for (let row = 0; row < this.gridSize; row++) {
+        for (let col = 0; col < this.gridSize; col++) {
           if (this.board[row][col] !== EMPTY_TILE) {
             if (!found1) {
               row1 = row;

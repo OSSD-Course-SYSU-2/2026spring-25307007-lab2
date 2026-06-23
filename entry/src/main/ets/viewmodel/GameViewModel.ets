@@ -1,7 +1,9 @@
 // 游戏核心逻辑控制器
 
 import { GameModel, GameState, TilePosition } from '../model/GameModel';
-import { GRID_SIZE } from '../common/Constants';
+import { GameMode, PREF_KEY_GAME_MODE } from '../common/Constants';
+import dataPreferences from '@ohos.data.preferences';
+import common from '@ohos.app.ability.common';
 
 // 移动方向枚举
 export enum MoveDirection {
@@ -29,6 +31,7 @@ export class GameViewState {
   elapsedTime: number = 0;
   gameState: GameState = GameState.IDLE;
   formattedTime: string = '00:00';
+  gridSize: number = 4;
 }
 
 // 游戏核心逻辑（非响应式，由页面统一管理状态）
@@ -36,10 +39,34 @@ export class GameViewModel {
   private model: GameModel = new GameModel();
   private timerId: number = -1;
   private onStateChange: (state: GameViewState) => void = () => {};
+  private currentMode: GameMode = GameMode.NORMAL;
+  private context: common.UIAbilityContext | null = null;
 
   constructor(onStateChange: (state: GameViewState) => void) {
     this.onStateChange = onStateChange;
     this.notifyState();
+  }
+
+  // 设置上下文（用于Preferences）
+  setContext(context: common.UIAbilityContext): void {
+    this.context = context;
+  }
+
+  // 设置游戏模式
+  setGameMode(mode: GameMode): void {
+    this.currentMode = mode;
+    this.model.setGridSize(mode);
+    this.notifyState();
+  }
+
+  // 获取游戏模式
+  getGameMode(): GameMode {
+    return this.currentMode;
+  }
+
+  // 获取棋盘尺寸
+  getGridSize(): number {
+    return this.model.getGridSize();
   }
 
   private notifyState(): void {
@@ -49,6 +76,7 @@ export class GameViewModel {
     state.elapsedTime = this.model.elapsedTime;
     state.gameState = this.model.state;
     state.formattedTime = this.model.getFormattedTime();
+    state.gridSize = this.model.getGridSize();
     this.onStateChange(state);
   }
 
@@ -129,7 +157,8 @@ export class GameViewModel {
         break;
     }
 
-    if (targetRow < 0 || targetRow >= GRID_SIZE || targetCol < 0 || targetCol >= GRID_SIZE) {
+    const gridSize = this.model.getGridSize();
+    if (targetRow < 0 || targetRow >= gridSize || targetCol < 0 || targetCol >= gridSize) {
       return new MoveResult();
     }
 
@@ -162,6 +191,35 @@ export class GameViewModel {
     if (this.timerId !== -1) {
       clearInterval(this.timerId);
       this.timerId = -1;
+    }
+  }
+
+  // 保存游戏模式到Preferences
+  async saveGameMode(mode: GameMode): Promise<void> {
+    if (!this.context) {
+      return;
+    }
+    try {
+      const preferences = await dataPreferences.getPreferences(this.context, 'game_settings');
+      await preferences.put(PREF_KEY_GAME_MODE, mode);
+      await preferences.flush();
+    } catch (error) {
+      console.error('Failed to save game mode:', error);
+    }
+  }
+
+  // 从Preferences加载游戏模式
+  async loadGameMode(): Promise<GameMode> {
+    if (!this.context) {
+      return GameMode.NORMAL;
+    }
+    try {
+      const preferences = await dataPreferences.getPreferences(this.context, 'game_settings');
+      const mode = await preferences.get(PREF_KEY_GAME_MODE, GameMode.NORMAL);
+      return mode as GameMode;
+    } catch (error) {
+      console.error('Failed to load game mode:', error);
+      return GameMode.NORMAL;
     }
   }
 }

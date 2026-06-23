@@ -1,4 +1,4 @@
-// 棋盘组件 - Column+Row弹性布局，4x4格局，全设备自适应
+// 棋盘组件 - Column+Row弹性布局，动态尺寸，全设备自适应
 
 import { NumberTile } from './NumberTile';
 import {
@@ -13,14 +13,15 @@ export struct GameBoard {
   @Prop gameState: GameState = GameState.IDLE;
   @Prop tileFontSize: string = '6fp';
   @Prop boardPadding: string = '3%';
+  @Prop gridSize: number = GRID_SIZE;
   onTileClick: (row: number, col: number) => void = () => {};
   isAdjacentToEmpty: (row: number, col: number) => boolean = () => false;
 
   build() {
     Column({ space: 0 }) {
-      ForEach(Array(GRID_SIZE).fill(0).map((_: number, i: number) => i), (row: number) => {
+      ForEach(Array(this.gridSize).fill(0).map((_: number, i: number) => i), (row: number) => {
         Row({ space: 0 }) {
-          ForEach(Array(GRID_SIZE).fill(0).map((_: number, i: number) => i), (col: number) => {
+          ForEach(Array(this.gridSize).fill(0).map((_: number, i: number) => i), (col: number) => {
             NumberTile({
               value: this.board[row][col],
               isMovable: this.gameState === GameState.PLAYING && this.isAdjacentToEmpty(row, col),

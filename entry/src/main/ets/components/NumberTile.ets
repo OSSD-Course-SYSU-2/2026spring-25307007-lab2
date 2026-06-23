@@ -56,10 +56,10 @@ export struct NumberTile {
     }
   }
 
-  // 根据数字值获取渐变色
+  // 根据数字值获取渐变色（适配1-35数字，每6个数字一组）
   private getGradientColors(): Array<[string, number]> {
     const colorGroup = TILE_GRADIENT_COLORS;
-    const groupIndex = Math.floor((this.value - 1) / 4) % colorGroup.length;
+    const groupIndex = Math.floor((this.value - 1) / 6) % colorGroup.length;
     const colors = colorGroup[groupIndex];
     return [
       [colors[0], 0.0],

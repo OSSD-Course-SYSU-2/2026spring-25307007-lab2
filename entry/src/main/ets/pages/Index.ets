@@ -4,16 +4,19 @@ import { GameViewModel, MoveDirection, GameViewState } from '../viewmodel/GameVi
 import { GameBoard } from '../components/GameBoard';
 import { ScoreBoard } from '../components/ScoreBoard';
 import { VictoryDialog } from '../components/VictoryDialog';
+import { ModeSelector } from '../components/ModeSelector';
 import { GameState } from '../model/GameModel';
 import {
   BG_COLOR_START,
   BG_COLOR_END,
   TITLE_TEXT,
-  BTN_NEW_GAME
+  BTN_NEW_GAME,
+  GameMode
 } from '../common/Constants';
 import { ConfigurationConstant, Configuration } from '@kit.AbilityKit';
 import { deviceInfo } from '@kit.BasicServicesKit';
 import { display } from '@kit.ArkUI';
+import common from '@ohos.app.ability.common';
 
 // 设备信息接口定义
 interface DeviceInfo {
@@ -32,6 +35,9 @@ struct Index {
   @State isLandscape: boolean = false;
   @State hasDetectedDevice: boolean = false;
 
+  // 游戏模式状态
+  @State currentMode: GameMode = GameMode.NORMAL;
+
   // ViewModel（非响应式，通过回调更新状态）
   private viewModel: GameViewModel = new GameViewModel((state: GameViewState) => {
     this.viewState = state;
@@ -43,9 +49,37 @@ struct Index {
   private readonly SWIPE_THRESHOLD: number = 30;
 
   aboutToAppear(): void {
-    this.viewModel.startNewGame();
+    // 设置上下文
+    const context = getContext(this) as common.UIAbilityContext;
+    this.viewModel.setContext(context);
+
+    // 加载保存的游戏模式
+    this.loadSavedMode();
+
     this.hasDetectedDevice = false; // 重置检测标志，确保每次加载都重新检测
     this.detectDeviceType();
+  }
+
+  // 加载保存的游戏模式
+  private async loadSavedMode(): Promise<void> {
+    const savedMode = await this.viewModel.loadGameMode();
+    this.currentMode = savedMode;
+    this.viewModel.setGameMode(savedMode);
+    this.viewModel.startNewGame();
+  }
+
+  // 处理模式切换
+  private async handleModeChange(mode: GameMode): Promise<void> {
+    if (mode === this.currentMode) {
+      return;
+    }
+
+    // 如果游戏正在进行，可以添加确认对话框（这里简化处理）
+    this.currentMode = mode;
+    this.viewModel.setGameMode(mode);
+    await this.viewModel.saveGameMode(mode);
+    this.showVictory = false;
+    this.viewModel.startNewGame();
   }
 
   aboutToDisappear(): void {
@@ -121,10 +155,12 @@ struct Index {
   // ========== 各设备布局参数计算 ==========
 
   private getBoardWidthPercent(): string {
-    if (this.deviceCategory === 'wearable') return '65%';
-    if (this.deviceCategory === 'tv') return this.isLandscape ? '50%' : '70%';
-    if (this.deviceCategory === 'tablet') return this.isLandscape ? '55%' : '80%';
-    return '90%';
+    // 6×6模式使用稍小的棋盘宽度
+    const isHardMode = this.currentMode === GameMode.HARD;
+    if (this.deviceCategory === 'wearable') return isHardMode ? '60%' : '65%';
+    if (this.deviceCategory === 'tv') return this.isLandscape ? (isHardMode ? '45%' : '50%') : (isHardMode ? '65%' : '70%');
+    if (this.deviceCategory === 'tablet') return this.isLandscape ? (isHardMode ? '50%' : '55%') : (isHardMode ? '75%' : '80%');
+    return isHardMode ? '85%' : '90%';
   }
 
   private getTitleFontSize(): string {
@@ -160,10 +196,12 @@ struct Index {
   }
 
   private getTileFontSize(): string {
-    if (this.deviceCategory === 'wearable') return '8fp';
-    if (this.deviceCategory === 'tv') return '16fp';
-    if (this.deviceCategory === 'tablet') return '32fp';
-    return '12fp';
+    // 6×6模式使用更小的字体
+    const isHardMode = this.currentMode === GameMode.HARD;
+    if (this.deviceCategory === 'wearable') return isHardMode ? '6fp' : '8fp';
+    if (this.deviceCategory === 'tv') return isHardMode ? '12fp' : '16fp';
+    if (this.deviceCategory === 'tablet') return isHardMode ? '24fp' : '32fp';
+    return isHardMode ? '9fp' : '12fp';
   }
 
   private getScoreLabelFontSize(): string {
@@ -243,12 +281,24 @@ struct Index {
         .fontWeight(FontWeight.Bold)
         .margin({ top: '1%', bottom: '1%' })
 
+      ModeSelector({
+        currentMode: this.currentMode,
+        selectorWidth: '70%',
+        selectorHeight: '6vp',
+        fontSize: '2.5fp',
+        onModeChange: (mode: GameMode) => {
+          this.handleModeChange(mode);
+        }
+      })
+        .margin({ bottom: '1%' })
+
       Flex({ justifyContent: FlexAlign.Center, alignItems: ItemAlign.Center }) {
         GameBoard({
           board: this.viewState.board,
           gameState: this.viewState.gameState,
           tileFontSize: this.getTileFontSize(),
           boardPadding: this.getBoardPadding(),
+          gridSize: this.viewState.gridSize,
           onTileClick: (row: number, col: number) => {
             this.handleTileClick(row, col);
           },
@@ -299,6 +349,17 @@ struct Index {
         })
         .maxLines(1)
 
+      ModeSelector({
+        currentMode: this.currentMode,
+        selectorWidth: '50%',
+        selectorHeight: '8vp',
+        fontSize: '5fp',
+        onModeChange: (mode: GameMode) => {
+          this.handleModeChange(mode);
+        }
+      })
+        .margin({ bottom: '1.5%' })
+
       Flex({ justifyContent: FlexAlign.Center, alignItems: ItemAlign.Center }) {
         ScoreBoard({
           moveCount: this.viewState.moveCount,
@@ -317,6 +378,7 @@ struct Index {
           gameState: this.viewState.gameState,
           tileFontSize: this.getTileFontSize(),
           boardPadding: this.getBoardPadding(),
+          gridSize: this.viewState.gridSize,
           onTileClick: (row: number, col: number) => {
             this.handleTileClick(row, col);
           },
@@ -362,6 +424,7 @@ struct Index {
             gameState: this.viewState.gameState,
             tileFontSize: this.getTileFontSize(),
             boardPadding: this.getBoardPadding(),
+            gridSize: this.viewState.gridSize,
             onTileClick: (row: number, col: number) => {
               this.handleTileClick(row, col);
             },
@@ -387,6 +450,17 @@ struct Index {
               offsetX: 0,
               offsetY: 2
             })
+
+          ModeSelector({
+            currentMode: this.currentMode,
+            selectorWidth: '80%',
+            selectorHeight: '10vp',
+            fontSize: '10fp',
+            onModeChange: (mode: GameMode) => {
+              this.handleModeChange(mode);
+            }
+          })
+            .margin({ bottom: '3%' })
 
           ScoreBoard({
             moveCount: this.viewState.moveCount,
@@ -436,6 +510,17 @@ struct Index {
             offsetY: 2
           })
 
+        ModeSelector({
+          currentMode: this.currentMode,
+          selectorWidth: '70%',
+          selectorHeight: '10vp',
+          fontSize: '10fp',
+          onModeChange: (mode: GameMode) => {
+            this.handleModeChange(mode);
+          }
+        })
+          .margin({ bottom: '2%' })
+
         Flex({ justifyContent: FlexAlign.Center, alignItems: ItemAlign.Center }) {
           ScoreBoard({
             moveCount: this.viewState.moveCount,
@@ -454,6 +539,7 @@ struct Index {
             gameState: this.viewState.gameState,
             tileFontSize: this.getTileFontSize(),
             boardPadding: this.getBoardPadding(),
+            gridSize: this.viewState.gridSize,
             onTileClick: (row: number, col: number) => {
               this.handleTileClick(row, col);
             },
@@ -505,6 +591,17 @@ struct Index {
           offsetY: 2
         })
 
+      ModeSelector({
+        currentMode: this.currentMode,
+        selectorWidth: '70%',
+        selectorHeight: '8vp',
+        fontSize: '4fp',
+        onModeChange: (mode: GameMode) => {
+          this.handleModeChange(mode);
+        }
+      })
+        .margin({ bottom: '1.5%' })
+
       Flex({ justifyContent: FlexAlign.Center, alignItems: ItemAlign.Center }) {
         ScoreBoard({
           moveCount: this.viewState.moveCount,
@@ -523,6 +620,7 @@ struct Index {
           gameState: this.viewState.gameState,
           tileFontSize: this.getTileFontSize(),
           boardPadding: this.getBoardPadding(),
+          gridSize: this.viewState.gridSize,
           onTileClick: (row: number, col: number) => {
             this.handleTileClick(row, col);
           },
